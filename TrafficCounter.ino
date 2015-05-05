@@ -1,3 +1,4 @@
+#include <XBee.h>
 #include <SPI\SPI.h>
 #include <SD.h>
 #include <ProgmemString.h>
@@ -25,25 +26,40 @@ const float TRAFFIC_COUNTER_VERSION = 1;
 // Config
 //////////////////////////////////////////////////////////////////////////
 
+// Rangefinder
 Maxbotix rangeSensor(RANGEFINDER_AN_PIN, Maxbotix::AN, Maxbotix::XL);
-float rangeBaseline;
-float rangeVariance;
+int rangeBaseline;
+int rangeVariance;
 
+// PIR motion
 bool motionDetected;
 long timeOfLastMotion;
 
+// Timers
 SimpleTimer timer;
 int rangeTimerID;
 int motionTimerID;
 int logTimerID;
+int transmitTimerID;
 
+// Data storage
 JsonObject<6> trafficEntry;
+StraightBuffer sendBuffer(SEND_BUFFER_SIZE);
 
+// Serial commands
 char _commandCache[COMMAND_CACHE_SIZE];
 CommandHandler commandHandler(_commandCache, COMMAND_CACHE_SIZE);
 
+// SD card
 File trafficLog;
 long entryNumber;
+
+// XBee
+XBee xbee = XBee();
+ZBTxRequest zbTx = ZBTxRequest(COORDINATOR_ADDRESS, sendBuffer.getBufferAddress(), SEND_BUFFER_SIZE);
+XBeeResponse response = XBeeResponse();
+ZBRxResponse zbRx = ZBRxResponse();
+ZBTxStatusResponse txStatus = ZBTxStatusResponse();
 
 //////////////////////////////////////////////////////////////////////////
 // Arduino Functions
@@ -62,6 +78,7 @@ void setup()
 	startSensors();
 	addSerialCommands();
 
+	// Start SD card logging
 	startStorage();
 }
 
@@ -153,7 +170,12 @@ void startStorage(){
 	}
 
 	trafficLog = SD.open(LOG_FILENAME, FILE_WRITE);
-	trafficLog.println(P("Traffic counter - output in JSON"));
+	trafficLog.println(P("Traffic counter"));
+	trafficLog.print(P("Rangefinder baseline: "));
+	trafficLog.print(rangeBaseline);
+	trafficLog.print(P(" cm, Variance: "));
+	trafficLog.print(rangeVariance);
+	trafficLog.println(P("cm\n************"));
 	trafficLog.close();
 
 	startLogging();
@@ -202,6 +224,100 @@ void startLogging(){
 */
 void stopLogging(){
 	timer.deleteTimer(logTimerID);
+}
+
+
+//////////////////////////////////////////////////////////////////////////
+// XBee
+
+/**
+* Set up the XBee for data transmission
+*/
+void startXbee(){
+	xbee.setSerial(Serial3);
+
+	transmitTimerID = timer.setInterval(XBEE_TRANSMIT_INTERVAL, sendXbeePacket);
+}
+
+/**
+* Transmit the latest traffic entry over XBee
+*/
+void sendXbeePacket(){
+	prepareXbeePacket();
+	transmitData();
+}
+
+/**
+* Package the latest traffic entry for sending over XBee
+*/
+void prepareXbeePacket(){
+	sendBuffer.reset();
+
+	sendBuffer.write('R');
+	sendBuffer.write(':');
+	sendBuffer.writeInt(int(trafficEntry["count_uvd"]));
+	sendBuffer.write(',');
+
+	sendBuffer.write('r');
+	sendBuffer.write(':');
+	sendBuffer.writeInt(int(trafficEntry["range"]));
+	sendBuffer.write(',');
+
+	sendBuffer.write('M');
+	sendBuffer.write(':');
+	sendBuffer.writeInt(int(trafficEntry["count_pir"]));
+	sendBuffer.write(',');
+
+	sendBuffer.write('m');
+	sendBuffer.write(':');
+	sendBuffer.write(int(trafficEntry["pir_status"]));
+}
+
+/**
+* Send the recorded packet over the XBee
+* Uses API mode transmission
+*/
+void transmitData(){
+	zbTx = ZBTxRequest(COORDINATOR_ADDRESS, COORDINATOR_SHORT_ADDRESS, 0, EXTENDED_TIMEOUT,
+		sendBuffer.getBufferAddress(), sendBuffer.getWritePosition(), 48);
+	int retries = 0;
+	bool packetSent = false;
+
+	// Attempt to send until the packet transmits or times out
+	while (!packetSent && retries <= XBEE_MAX_RETRIES){
+		retries++;
+	
+		xbee.send(zbTx);
+
+		// Check for acknowledgment
+		if (xbee.readPacket(XBEE_ACK_TIMEOUT)) {
+			Log.Debug(P("Response received - API [%i]"), xbee.getResponse().getApiId());
+
+			// should be a znet tx status
+			if (xbee.getResponse().getApiId() == ZB_TX_STATUS_RESPONSE) {
+				xbee.getResponse().getZBTxStatusResponse(txStatus);
+
+				// get the delivery status, the fifth byte
+				if (txStatus.getDeliveryStatus() == SUCCESS) {
+					Log.Info(P("Packet delivery successful"));
+					packetSent = true;
+
+				}
+				else {
+					Log.Error(P("Packet delivery unsuccessful - [%i]"), txStatus.getDeliveryStatus());
+				}
+			}
+		}
+
+		else if (xbee.getResponse().isError()) {
+			Log.Error(P("Could not receive packet"));
+		}
+
+		else {
+			// Local XBee did not return a response - Happens when serial is in use
+			Log.Error(P("No response from XBee (Serial in use)"));
+		}
+	}
 }
 
 
@@ -408,11 +524,21 @@ void resetMotionCount(){
 	trafficEntry["count_pir"] = 0;
 }
 
+/**
+* enableMotion
+*
+* Turn on the motion sensor
+*/
 void enableMotion(){
 	pinMode(PIR_CONTROL_PIN, OUTPUT);
 	digitalWrite(PIR_CONTROL_PIN, HIGH);
 }
 
+/**
+* disableMotion
+*
+* Turn off the motion sensor
+*/
 void disableMotion(){
 	digitalWrite(PIR_CONTROL_PIN, LOW);
 }
