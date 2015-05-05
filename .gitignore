@@ -8,6 +8,8 @@
 *.sln.docstates
 *.atsuo
 *.cppproj
+*.sln
+*.vcxproj
 
 # Build results
 [Dd]ebug/
