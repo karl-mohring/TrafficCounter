@@ -1,3 +1,6 @@
+
+#include <SD.h>
+#include <ArduinoStream.h>
 #include <ProgmemString.h>
 #include <StraightBuffer.h>
 #include <PirMotion.h>
@@ -48,7 +51,6 @@ CommandHandler commandHandler(_commandCache, COMMAND_CACHE_SIZE);
 */
 void setup()
 {
-
 	// Start up comms
 	Log.Init(LOGGER_LEVEL, SERIAL_BAUD);
 	Log.Info(P("Traffic Counter - ver %d"), TRAFFIC_COUNTER_VERSION);
@@ -57,8 +59,6 @@ void setup()
   
 	// Start up sensors
 	startSensors();
-	startBuzzer();
-
 	addSerialCommands();
 }
 
@@ -126,10 +126,13 @@ void addSerialCommands(){
 *
 * Bad command received. Make fun of the sender
 */
-void defaultHandler(char* c){
+void defaultHandler(char c){
 	Log.Error(P("Command not recognised: %s"), c);
 }
 
+
+//////////////////////////////////////////////////////////////////////////
+// SD Card
 
 //////////////////////////////////////////////////////////////////////////
 // Rangefinder
@@ -267,7 +270,11 @@ void resetRangeCount(){
 * Start the PIR motion sensor for motion detections
 */
 void startMotionDetector(){
+	enableMotion();
+
 	pinMode(PIR_MOTION_PIN, INPUT);
+
+	Log.Debug(P("Calibrating motion sensor - wait %d ms"), MOTION_INITIALISATION_TIME);
 	delay(MOTION_INITIALISATION_TIME);
 	motionDetected = false;
 
@@ -282,6 +289,7 @@ void startMotionDetector(){
 */
 void stopMotionDetector(){
 	timer.deleteTimer(motionTimerID);
+	disableMotion();
 
 	Log.Debug(P("Motion sensor stopped"));
 }
@@ -308,6 +316,8 @@ void getMotion(){
 			motionCount++;
 			trafficEntry["count_pir"] = motionCount;
 
+			Log.Info(P("Traffic count - PIR: %l counts"), motionCount);
+
 		}
 		else{
 			// No alarm; is fine
@@ -325,19 +335,11 @@ void resetMotionCount(){
 	trafficEntry["count_pir"] = 0;
 }
 
-
-//////////////////////////////////////////////////////////////////////////
-// Buzzer
-
-void startBuzzer(){
-	
+void enableMotion(){
+	pinMode(PIR_CONTROL_PIN, OUTPUT);
+	digitalWrite(PIR_CONTROL_PIN, HIGH);
 }
 
-void buzzerOn(){
-	
+void disableMotion(){
+	digitalWrite(PIR_CONTROL_PIN, LOW);
 }
-
-void buzzerOff(){
-	
-}
-

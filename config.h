@@ -7,13 +7,14 @@ const int LOGGER_LEVEL = LOG_LEVEL_DEBUG;
 // Pin assignments
 const byte RANGEFINDER_AN_PIN = A0;
 const byte RANGEFINDER_CONTROL_PIN = A1;
-const byte PIR_MOTION_PIN = A2;
+const byte PIR_MOTION_PIN = A7;
+const byte PIR_CONTROL_PIN = A9;
 
 const byte BUZZER_PIN = 2;
 
 // Timer config
 const int CHECK_MOTION_INTERVAL = 500;
-const int MOTION_TIMEOUT = 1000;
+const int MOTION_TIMEOUT = 3000;
 
 const int CHECK_RANGE_INTERVAL = 200;
 const int RANGE_DETECT_THRESHOLD = 50; // Minimum threshold for range detection in cm. (Target must move at least this much) 
