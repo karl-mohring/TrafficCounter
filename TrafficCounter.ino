@@ -1,6 +1,5 @@
-
+#include <SPI\SPI.h>
 #include <SD.h>
-#include <ArduinoStream.h>
 #include <ProgmemString.h>
 #include <StraightBuffer.h>
 #include <PirMotion.h>
@@ -36,11 +35,15 @@ long timeOfLastMotion;
 SimpleTimer timer;
 int rangeTimerID;
 int motionTimerID;
+int logTimerID;
 
-JsonObject<5> trafficEntry;
+JsonObject<6> trafficEntry;
 
 char _commandCache[COMMAND_CACHE_SIZE];
 CommandHandler commandHandler(_commandCache, COMMAND_CACHE_SIZE);
+
+File trafficLog;
+long entryNumber;
 
 //////////////////////////////////////////////////////////////////////////
 // Arduino Functions
@@ -55,11 +58,11 @@ void setup()
 	Log.Init(LOGGER_LEVEL, SERIAL_BAUD);
 	Log.Info(P("Traffic Counter - ver %d"), TRAFFIC_COUNTER_VERSION);
   
-	// Initialise SD card
-  
 	// Start up sensors
 	startSensors();
 	addSerialCommands();
+
+	startStorage();
 }
 
 /**
@@ -87,6 +90,7 @@ void startSensors(){
 	trafficEntry["range"] = 0;
 	trafficEntry["pir_status"] = false;
 	trafficEntry["time"] = 0;
+	trafficEntry["entry_num"] = 0;
 
 	startRangefinder();
 	startMotionDetector();
@@ -133,6 +137,73 @@ void defaultHandler(char c){
 
 //////////////////////////////////////////////////////////////////////////
 // SD Card
+
+/**
+* startStorage
+*
+* Start and configure the onboard SD card for logging.
+*/
+void startStorage(){
+	Log.Debug(P("Initialising SD card..."));
+
+	pinMode(SS, OUTPUT);
+	if (!SD.begin(SD_CHIP_SELECT)) {
+		Log.Error(P("Error initialising SD card"));
+		return;
+	}
+
+	trafficLog = SD.open(LOG_FILENAME, FILE_WRITE);
+	trafficLog.println(P("Traffic counter - output in JSON"));
+	trafficLog.close();
+
+	startLogging();
+}
+
+/**
+* writeLogEntry
+*
+* Write a traffic entry to the SD log file
+*/
+void writeLogEntry(){
+	trafficLog = SD.open(LOG_FILENAME, FILE_WRITE);
+
+	if (trafficLog){
+		trafficEntry["time"] = long(millis());
+		long entryNumber = trafficEntry["entry_num"];
+		entryNumber++;
+		trafficEntry["entry_num"] = entryNumber;
+
+		trafficEntry.printTo(trafficLog);
+		trafficLog.println();
+
+		trafficLog.close();
+
+		Log.Debug(P("Log entry written"));
+	}
+	else{
+		Log.Error(P("Error writing to log file"));
+	}
+	
+}
+
+/**
+* startLogging
+*
+* Allow timed log entries
+*/
+void startLogging(){
+	logTimerID = timer.setInterval(LOG_TIMER_INTERVAL, writeLogEntry);
+}
+
+/**
+* stopLogging
+*
+* Disabled timed log entries.
+*/
+void stopLogging(){
+	timer.deleteTimer(logTimerID);
+}
+
 
 //////////////////////////////////////////////////////////////////////////
 // Rangefinder
@@ -324,6 +395,8 @@ void getMotion(){
 			motionDetected = false;
 		}
 	}
+
+	trafficEntry["pir_status"] = motionDetected;
 }
 
 /**

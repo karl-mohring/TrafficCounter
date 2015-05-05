@@ -10,7 +10,8 @@ const byte RANGEFINDER_CONTROL_PIN = A1;
 const byte PIR_MOTION_PIN = A7;
 const byte PIR_CONTROL_PIN = A9;
 
-const byte BUZZER_PIN = 2;
+const byte SD_CHIP_SELECT = 4;
+
 
 // Timer config
 const int CHECK_MOTION_INTERVAL = 500;
@@ -19,7 +20,7 @@ const int MOTION_TIMEOUT = 3000;
 const int CHECK_RANGE_INTERVAL = 200;
 const int RANGE_DETECT_THRESHOLD = 50; // Minimum threshold for range detection in cm. (Target must move at least this much) 
 
-const int BUZZER_BEEP_DURATION = 100;
+const long LOG_TIMER_INTERVAL = 5000; // Time in between SD card log entries in ms.
 
 // Misc
 
@@ -30,6 +31,8 @@ const int BASELINE_VARIANCE_THRESHOLD = 5; // Maximum acceptable range sensor ba
 
 const int MOTION_INITIALISATION_TIME = 5000; // Time given for PIR sensor to calibrate in ms.
 const byte MOTION_DETECTED = HIGH;
+
+const char LOG_FILENAME[] = "traffic.txt";
 
 // Commands
 const char COMMAND_TERMINATOR = '$';
