@@ -11,6 +11,8 @@
 *.sln
 *.vcxproj
 *.vcxproj.filters*
+*.pyc
+*remoteTrafficLog.csv
 
 # Build results
 [Dd]ebug/
@@ -24,6 +26,7 @@ bld/
 [Bb]in/
 [Oo]bj/
 [Vv]isual [Mm]icro/
+.idea/
 
 # Roslyn cache directories
 *.ide/

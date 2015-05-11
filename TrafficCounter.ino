@@ -80,6 +80,9 @@ void setup()
 
 	// Start SD card logging
 	startStorage();
+
+	// Start XBee transmission
+	startXbee();
 }
 
 /**
@@ -234,9 +237,10 @@ void stopLogging(){
 * Set up the XBee for data transmission
 */
 void startXbee(){
+	Serial3.begin(57600);
 	xbee.setSerial(Serial3);
 
-	transmitTimerID = timer.setInterval(XBEE_TRANSMIT_INTERVAL, sendXbeePacket);
+	//transmitTimerID = timer.setInterval(XBEE_TRANSMIT_INTERVAL, sendXbeePacket);
 }
 
 /**
@@ -255,7 +259,7 @@ void prepareXbeePacket(){
 
 	sendBuffer.write('R');
 	sendBuffer.write(':');
-	sendBuffer.writeInt(int(trafficEntry["count_uvd"]));
+	sendBuffer.writeInt(trafficEntry["count_uvd"]);
 	sendBuffer.write(',');
 
 	sendBuffer.write('r');
@@ -432,6 +436,9 @@ void checkRange(){
 		trafficEntry["count_uvd"] = trafficCount;
 
 		Log.Info(P("Traffic count - UVD: %d counts"), trafficCount);
+
+		// Also send an XBee alert
+		sendXbeePacket();
 	}
 
 	trafficEntry["range"] = newRange;

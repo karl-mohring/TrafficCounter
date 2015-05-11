@@ -128,7 +128,8 @@ def process_stalker_packet(data):
         uvd_count, uvd_range, pir_count, pir_status = struct.unpack(">xxHxxxHxxxHxxx?", data)
  
         new_entry = {
-        	'id': UNIT_CLASS,
+            'datetime': str(datetime.datetime.now()),
+            'id': UNIT_CLASS,
             'uvd_count': uvd_count,
             'uvd_range': uvd_range,
             'pir_count': pir_count,
@@ -215,7 +216,8 @@ def upload_loop():
             logger.debug("Mapped packet: {}".format(thingspeak_packet))
 
             # Thingspeak requires a minimum of 15 seconds between uploads
-            time.sleep(15)
+            # Bypass timeout, just update whenever possible
+            # ime.sleep(15)
             logger.debug("Uploader ready...")
 
         except Exception:
