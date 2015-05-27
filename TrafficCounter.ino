@@ -1,20 +1,19 @@
-#include <XBee.h>
+#include <ADNS3080.h>
 #include <SPI\SPI.h>
-#include <SD.h>
 #include <ProgmemString.h>
 #include <StraightBuffer.h>
-#include <PirMotion.h>
 #include <Logging.h>
 #include <JsonParser.h>
 #include <JsonGenerator.h>
 #include <Maxbotix.h>
 #include <SimpleTimer.h>
 #include <CommandHandler.h>
+
 #include "config.h"
 
 using namespace ArduinoJson::Generator;
 
-const float TRAFFIC_COUNTER_VERSION = 1;
+const float TRAFFIC_COUNTER_VERSION = 2;
 
 //////////////////////////////////////////////////////////////////////////
 // Traffic Counter
@@ -35,31 +34,31 @@ int rangeVariance;
 bool motionDetected;
 long timeOfLastMotion;
 
+// Optical Flow
+AP_OpticalFlow_ADNS3080 flowSensor(OPTICAL_FLOW_CHIP_SELECT_PIN, 0);
+int8_t flow_dx;
+int8_t flow_dy;
+
 // Timers
 SimpleTimer timer;
 int rangeTimerID;
 int motionTimerID;
-int logTimerID;
-int transmitTimerID;
+int flowTimerID;
+
+// Buzzer stuff
+int beepCount = 0;
+int maxBeeps = 0;
 
 // Data storage
-JsonObject<6> trafficEntry;
+JsonObject<11> trafficEntry;
 StraightBuffer sendBuffer(SEND_BUFFER_SIZE);
 
 // Serial commands
 char _commandCache[COMMAND_CACHE_SIZE];
 CommandHandler commandHandler(_commandCache, COMMAND_CACHE_SIZE);
 
-// SD card
-File trafficLog;
 long entryNumber;
 
-// XBee
-XBee xbee = XBee();
-ZBTxRequest zbTx = ZBTxRequest(COORDINATOR_ADDRESS, sendBuffer.getBufferAddress(), SEND_BUFFER_SIZE);
-XBeeResponse response = XBeeResponse();
-ZBRxResponse zbRx = ZBRxResponse();
-ZBTxStatusResponse txStatus = ZBTxStatusResponse();
 
 //////////////////////////////////////////////////////////////////////////
 // Arduino Functions
@@ -75,14 +74,10 @@ void setup()
 	Log.Info(P("Traffic Counter - ver %d"), TRAFFIC_COUNTER_VERSION);
   
 	// Start up sensors
+	startBuzzer();
 	startSensors();
 	addSerialCommands();
 
-	// Start SD card logging
-	startStorage();
-
-	// Start XBee transmission
-	startXbee();
 }
 
 /**
@@ -100,27 +95,30 @@ void loop()
 //////////////////////////////////////////////////////////////////////////
 
 /**
-* startSensors
-*
 * Enable and configure the sensor suite for reading
 */
 void startSensors(){
+	trafficEntry["id"] = "trafficCount";
+	trafficEntry["version"] = TRAFFIC_COUNTER_VERSION;
+
 	trafficEntry["count_uvd"] = 0;
-	trafficEntry["count_pir"] = 0;
 	trafficEntry["range"] = 0;
+
+	trafficEntry["count_pir"] = 0;
 	trafficEntry["pir_status"] = false;
-	trafficEntry["time"] = 0;
-	trafficEntry["entry_num"] = 0;
+
+	trafficEntry["count_of"] = 0;
+	trafficEntry["of_dx"] = 0;
+	trafficEntry["of_dy"] = 0;
+	trafficEntry["of_status"] = false;
+	trafficEntry["of_connected"] = false;
 
 	startRangefinder();
 	startMotionDetector();
-
-	rangeTimerID = timer.setInterval(CHECK_RANGE_INTERVAL, checkRange);
-}
+	startOpticalFlow();
+	}
 
 /**
-* CheckSerial
-* 
 * Check serial comms for incoming commands
 */
 void checkSerial(){
@@ -131,8 +129,6 @@ void checkSerial(){
 }
 
 /**
-* addSerialCommands
-*
 * Add commands to the response list
 */
 void addSerialCommands(){
@@ -146,182 +142,19 @@ void addSerialCommands(){
 }
 
 /**
-* defaultHandler
-*
 * Bad command received. Make fun of the sender
 */
 void defaultHandler(char c){
 	Log.Error(P("Command not recognised: %s"), c);
 }
 
-
-//////////////////////////////////////////////////////////////////////////
-// SD Card
-
 /**
-* startStorage
-*
-* Start and configure the onboard SD card for logging.
+* Print the current traffic counts and info to Serial
 */
-void startStorage(){
-	Log.Debug(P("Initialising SD card..."));
-
-	pinMode(SS, OUTPUT);
-	if (!SD.begin(SD_CHIP_SELECT)) {
-		Log.Error(P("Error initialising SD card"));
-		return;
-	}
-
-	trafficLog = SD.open(LOG_FILENAME, FILE_WRITE);
-	trafficLog.println(P("Traffic counter"));
-	trafficLog.print(P("Rangefinder baseline: "));
-	trafficLog.print(rangeBaseline);
-	trafficLog.print(P(" cm, Variance: "));
-	trafficLog.print(rangeVariance);
-	trafficLog.println(P("cm\n************"));
-	trafficLog.close();
-
-	startLogging();
-}
-
-/**
-* writeLogEntry
-*
-* Write a traffic entry to the SD log file
-*/
-void writeLogEntry(){
-	trafficLog = SD.open(LOG_FILENAME, FILE_WRITE);
-
-	if (trafficLog){
-		trafficEntry["time"] = long(millis());
-		long entryNumber = trafficEntry["entry_num"];
-		entryNumber++;
-		trafficEntry["entry_num"] = entryNumber;
-
-		trafficEntry.printTo(trafficLog);
-		trafficLog.println();
-
-		trafficLog.close();
-
-		Log.Debug(P("Log entry written"));
-	}
-	else{
-		Log.Error(P("Error writing to log file"));
-	}
-	
-}
-
-/**
-* startLogging
-*
-* Allow timed log entries
-*/
-void startLogging(){
-	logTimerID = timer.setInterval(LOG_TIMER_INTERVAL, writeLogEntry);
-}
-
-/**
-* stopLogging
-*
-* Disabled timed log entries.
-*/
-void stopLogging(){
-	timer.deleteTimer(logTimerID);
-}
-
-
-//////////////////////////////////////////////////////////////////////////
-// XBee
-
-/**
-* Set up the XBee for data transmission
-*/
-void startXbee(){
-	Serial3.begin(57600);
-	xbee.setSerial(Serial3);
-
-	//transmitTimerID = timer.setInterval(XBEE_TRANSMIT_INTERVAL, sendXbeePacket);
-}
-
-/**
-* Transmit the latest traffic entry over XBee
-*/
-void sendXbeePacket(){
-	prepareXbeePacket();
-	transmitData();
-}
-
-/**
-* Package the latest traffic entry for sending over XBee
-*/
-void prepareXbeePacket(){
-	sendBuffer.reset();
-
-	sendBuffer.write('R');
-	sendBuffer.write(':');
-	sendBuffer.writeInt(trafficEntry["count_uvd"]);
-	sendBuffer.write(',');
-
-	sendBuffer.write('r');
-	sendBuffer.write(':');
-	sendBuffer.writeInt(int(trafficEntry["range"]));
-	sendBuffer.write(',');
-
-	sendBuffer.write('M');
-	sendBuffer.write(':');
-	sendBuffer.writeInt(int(trafficEntry["count_pir"]));
-	sendBuffer.write(',');
-
-	sendBuffer.write('m');
-	sendBuffer.write(':');
-	sendBuffer.write(int(trafficEntry["pir_status"]));
-}
-
-/**
-* Send the recorded packet over the XBee
-* Uses API mode transmission
-*/
-void transmitData(){
-	zbTx = ZBTxRequest(COORDINATOR_ADDRESS, COORDINATOR_SHORT_ADDRESS, 0, EXTENDED_TIMEOUT,
-		sendBuffer.getBufferAddress(), sendBuffer.getWritePosition(), 48);
-	int retries = 0;
-	bool packetSent = false;
-
-	// Attempt to send until the packet transmits or times out
-	while (!packetSent && retries <= XBEE_MAX_RETRIES){
-		retries++;
-	
-		xbee.send(zbTx);
-
-		// Check for acknowledgment
-		if (xbee.readPacket(XBEE_ACK_TIMEOUT)) {
-			Log.Debug(P("Response received - API [%i]"), xbee.getResponse().getApiId());
-
-			// should be a znet tx status
-			if (xbee.getResponse().getApiId() == ZB_TX_STATUS_RESPONSE) {
-				xbee.getResponse().getZBTxStatusResponse(txStatus);
-
-				// get the delivery status, the fifth byte
-				if (txStatus.getDeliveryStatus() == SUCCESS) {
-					Log.Info(P("Packet delivery successful"));
-					packetSent = true;
-
-				}
-				else {
-					Log.Error(P("Packet delivery unsuccessful - [%i]"), txStatus.getDeliveryStatus());
-				}
-			}
-		}
-
-		else if (xbee.getResponse().isError()) {
-			Log.Error(P("Could not receive packet"));
-		}
-
-		else {
-			// Local XBee did not return a response - Happens when serial is in use
-			Log.Error(P("No response from XBee (Serial in use)"));
-		}
-	}
+void printData(){
+	Serial.print("#");
+	trafficEntry.printTo(Serial);
+	Serial.println("$");
 }
 
 
@@ -329,8 +162,6 @@ void transmitData(){
 // Rangefinder
 
 /**
-* startRangefinder
-*
 * Start the rangefinder sensor
 *
 * A baseline range (to the ground or static surrounds) is established for
@@ -369,13 +200,15 @@ void startRangefinder(){
 	rangeVariance = averageVariance;
 
 	Log.Debug(P("Baseline established: %d cm, %d cm variance"), averageRange, averageVariance);
+	trafficEntry["range"] = averageRange;
+	printData();
+
+	rangeTimerID = timer.setInterval(CHECK_RANGE_INTERVAL, checkRange);
+
 }
 
 /**
-* stopRangefinder
-*
 * Stop reading the ultrasonic range data and disable the sensor
-*
 */
 void stopRangefinder(){
 	disableRangefinder();
@@ -383,8 +216,6 @@ void stopRangefinder(){
 }
 
 /**
-* enabledRangefinder
-*
 * Allow the ultrasonic rangefinder to send ping signals
 */
 void enableRangefinder(){
@@ -393,8 +224,6 @@ void enableRangefinder(){
 }
 
 /**
-* disableRangefinder
-*
 * Stop sending range pings.
 */
 void disableRangefinder(){
@@ -402,8 +231,6 @@ void disableRangefinder(){
 }
 
 /**
-* getRange
-*
 * Get the range in cm from the ultrasonic rangefinder
 *
 * @return Target distance from sensor in cm
@@ -415,8 +242,6 @@ int getRange(){
 }
 
 /**
-* checkRange
-* 
 * Check the ultrasonic range sensor to see if a traffic event has occurred.
 *
 * Traffic events are counted as a break in the sensor's 'view' of the ground.
@@ -426,6 +251,8 @@ int getRange(){
 void checkRange(){
 	int lastRange = trafficEntry["range"];
 	int newRange = getRange();
+
+	trafficEntry["range"] = newRange;
 	
 	// Detection occurs when target breaks the LoS to the baseline
 	if ((rangeBaseline - newRange) > RANGE_DETECT_THRESHOLD && (lastRange - newRange) > RANGE_DETECT_THRESHOLD){
@@ -435,18 +262,17 @@ void checkRange(){
 		trafficCount++;
 		trafficEntry["count_uvd"] = trafficCount;
 
-		Log.Info(P("Traffic count - UVD: %d counts"), trafficCount);
+		Log.Debug(P("Traffic count - UVD: %d counts"), trafficCount);
 
 		// Also send an XBee alert
-		sendXbeePacket();
+		printData();
+		beep(NUM_BEEPS_UVD);
 	}
 
-	trafficEntry["range"] = newRange;
+	
 }
 
 /**
-* resetRangeCount
-*
 * Reset the traffic count for the ultrasonic rangefinder
 */
 void resetRangeCount(){
@@ -459,8 +285,6 @@ void resetRangeCount(){
 // Motion Detector
 
 /**
-* startMotionDetector
-*
 * Start the PIR motion sensor for motion detections
 */
 void startMotionDetector(){
@@ -477,8 +301,6 @@ void startMotionDetector(){
 }
 
 /**
-* stopMotionDetector
-*
 * Stop checking the motion detector
 */
 void stopMotionDetector(){
@@ -497,34 +319,53 @@ void stopMotionDetector(){
 *	True if motion has been detected recently
 */
 void getMotion(){
-	// Only check the motion alarm if the cool-off has been exceeded
-	if ((millis() - timeOfLastMotion) > (MOTION_TIMEOUT)){
+	
+	// Check the sensor
+	if (digitalRead(PIR_MOTION_PIN) == MOTION_DETECTED){
 
-		// Check the sensor
-		if (digitalRead(PIR_MOTION_PIN) == MOTION_DETECTED){
-			motionDetected = true;
-			timeOfLastMotion = millis();
+		motionDetected = true;
+		Log.Info(P("Motion detected"));
 
-			Log.Info(P("Motion detected"));
-			long motionCount = trafficEntry["count_pir"];
-			motionCount++;
-			trafficEntry["count_pir"] = motionCount;
+		// Increment PIR count
+		long motionCount = trafficEntry["count_pir"];
+		motionCount++;
+		trafficEntry["count_pir"] = motionCount;
 
-			Log.Info(P("Traffic count - PIR: %l counts"), motionCount);
+		Log.Info(P("Traffic count - PIR: %l counts"), motionCount);
 
-		}
-		else{
-			// No alarm; is fine
-			motionDetected = false;
-		}
+		printData();
+		beep(NUM_BEEPS_PIR);
+
+		// Enter the cooldown phase
+		motionCoolDown();
+
 	}
+	else{
+		// No alarm; is fine
+		motionDetected = false;
+	}
+	
 
 	trafficEntry["pir_status"] = motionDetected;
 }
 
 /**
-* resetMotionCount
-*
+* Temporarily pause checking the PIR motion sensor
+*/
+void motionCoolDown(){
+	timer.deleteTimer(motionTimerID);
+	motionTimerID = -1;
+	timer.setTimeout(MOTION_COOLDOWN, resumeMotionDetection);
+}
+
+/**
+* Start polling the PIR motion sensor
+*/
+void resumeMotionDetection(){
+	motionTimerID = timer.setInterval(CHECK_MOTION_INTERVAL, getMotion);
+}
+
+/**
 * Reset the number of motion detections
 */
 void resetMotionCount(){
@@ -532,9 +373,7 @@ void resetMotionCount(){
 }
 
 /**
-* enableMotion
-*
-* Turn on the motion sensor
+* Turn the motion sensor on - in a non-sexy way
 */
 void enableMotion(){
 	pinMode(PIR_CONTROL_PIN, OUTPUT);
@@ -542,10 +381,169 @@ void enableMotion(){
 }
 
 /**
-* disableMotion
-*
-* Turn off the motion sensor
+* Turn the motion sensor off
 */
 void disableMotion(){
 	digitalWrite(PIR_CONTROL_PIN, LOW);
 }
+
+
+//////////////////////////////////////////////////////////////////////////
+// Optical Flow
+
+/**
+* Start and initialise the optical flow sensor
+* The connection is confirmed by polling the device's product code
+*/
+void startOpticalFlow(){
+	flowSensor.init(true);
+
+	Log.Debug(P("Starting optical flow sensor"));
+
+	byte retries = 0;
+	bool flowConnected;
+	while (!flowConnected && retries < OPTICAL_FLOW_MAX_RETRIES){
+		flowConnected = checkOpticalFlowConnection();
+		Log.Debug(P("ADNS3080 connected: %T"), flowConnected);
+		retries++;
+	}
+
+	if (flowConnected){
+		Log.Debug(P("Optical flow connected. Configuring..."));
+		trafficEntry["of_connected"] = true;
+
+		flowSensor.set_frame_rate_auto(true);
+		flowSensor.set_shutter_speed_auto(true);
+		flowSensor.set_resolution(1600);
+	}
+
+	flowTimerID = timer.setInterval(CHECK_FLOW_INTERVAL, updateFlowMotion);
+}
+
+/**
+* Stop monitoring the optical flow sensor
+*/
+void stopOpticalFlow(){
+	timer.deleteTimer(flowTimerID);
+	flowTimerID = -1;
+}
+
+/**
+* Start monitoring the optical flow sensor
+*/
+void resumeOpticalFlow(){
+	flowSensor.clear_motion();
+	flowTimerID = timer.setInterval(CHECK_FLOW_INTERVAL, updateFlowMotion);
+}
+
+/**
+* Check the optical flow sensor to see if motion has been detected
+*/
+void updateFlowMotion(){
+	trafficEntry["of_connected"] = checkOpticalFlowConnection();
+
+	byte motionRegister = flowSensor.read_register(ADNS3080_MOTION);
+	bool motionDetected = motionRegister & 0x80;
+
+	trafficEntry["of_status"] = motionDetected;
+
+	// Motion detected - determine the direction
+	if (motionDetected){
+		int8_t of_dx = flowSensor.read_register(ADNS3080_DELTA_X);
+		int8_t of_dy = flowSensor.read_register(ADNS3080_DELTA_Y);
+
+		trafficEntry["of_dx"] = of_dx;
+		trafficEntry["of_dy"] = of_dy;
+
+		int of_count = trafficEntry["count_of"];
+		of_count++;
+		trafficEntry["count_of"] = of_count;
+
+		Log.Debug(P("Traffic Count - OF: %d counts"), of_count);
+		opticalFlowCooldown();
+
+		printData();
+		beep(NUM_BEEPS_OF);
+	}
+}
+
+/**
+* Check that the optical flow sensor is connected by polling the product code
+*/
+bool checkOpticalFlowConnection(){
+	byte productID = flowSensor.read_register(ADNS3080_PRODUCT_ID);
+	bool flowConnected = (productID == 0x17);
+
+	return flowConnected;
+}
+
+/**
+* Stop monitoring the optical flow sensor for a cooldown period.
+* Meant to be used immediately following detection events to avoid 
+* multiple detections for the same event
+*/
+void opticalFlowCooldown(){
+	stopOpticalFlow();
+	timer.setTimeout(FLOW_COOLDOWN, resumeOpticalFlow);
+}
+
+/**
+* Reset the traffic count for the optical flow sensor
+*/
+void resetFlowCount(){
+	trafficEntry["of_count"] = 0;
+}
+
+
+//////////////////////////////////////////////////////////////////////////
+// Buzzer
+
+/**
+* Set up the buzzer for use
+*/
+void startBuzzer(){
+	pinMode(BUZZER_PIN, OUTPUT);
+	buzzerOff();
+}
+
+/**
+* Beep the buzzer once. 
+* Uses a timeout event to turn the buzzer off
+*/
+void beep(){
+	digitalWrite(BUZZER_PIN, HIGH);
+	timer.setTimeout(BUZZER_BEEP_PERIOD, beepCheck);
+}
+
+/**
+* Beep the buzzer multiple times.
+* At low buzzer periods, multiple beeps sound more like a trill.
+*/
+void beep(int numBeeps){
+	if (numBeeps > 0){
+		beepCount = 1;
+		maxBeeps = numBeeps;
+
+		beep();
+	}
+}
+
+/**
+* Callback for beep - Check if the buzzer needs to beep again
+*/
+void beepCheck(){
+	buzzerOff();
+
+	if (beepCount < maxBeeps){
+		beepCount++;
+		timer.setTimeout(BUZZER_BEEP_PERIOD, beep);
+	}
+}
+
+/**
+* Turn the buzzer off
+*/
+void buzzerOff(){
+	digitalWrite(BUZZER_PIN, LOW);
+}
+

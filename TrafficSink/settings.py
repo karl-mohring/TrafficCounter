@@ -1,7 +1,7 @@
 __author__ = 'Leenix'
 
 UNIT_CLASS = "traffic"
-SERIAL_PORT = "COM6"
+SERIAL_PORT = "COM5"
 BAUD_RATE = 57600
 
 OUTPUT_FILENAME = "remoteTrafficLog.csv"

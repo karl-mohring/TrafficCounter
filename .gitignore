@@ -6,13 +6,14 @@
 *.user
 *.userosscache
 *.sln.docstates
+*.vcxproj*
 *.atsuo
+*.atsln
 *.cppproj
-*.sln
-*.vcxproj
-*.vcxproj.filters*
 *.pyc
-*remoteTrafficLog.csv
+
+*.[iI]dea/
+Visual Micro/
 
 # Build results
 [Dd]ebug/
@@ -25,8 +26,6 @@ build/
 bld/
 [Bb]in/
 [Oo]bj/
-[Vv]isual [Mm]icro/
-.idea/
 
 # Roslyn cache directories
 *.ide/
