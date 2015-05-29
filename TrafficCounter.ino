@@ -1,3 +1,5 @@
+#include <LIDARLite_registers.h>
+#include <LIDARduino.h>
 #include <ADNS3080.h>
 #include <SPI\SPI.h>
 #include <ProgmemString.h>
@@ -28,7 +30,10 @@ const float TRAFFIC_COUNTER_VERSION = 2;
 // Rangefinder
 Maxbotix rangeSensor(RANGEFINDER_AN_PIN, Maxbotix::AN, Maxbotix::XL);
 int rangeBaseline;
-int rangeVariance;
+
+// Lidar
+LIDAR_Lite_PWM lidar(LIDAR_TRIGGER_PIN, LIDAR_DETECT_PIN);
+int lidarBaselineRange;
 
 // PIR motion
 bool motionDetected;
@@ -41,16 +46,17 @@ int8_t flow_dy;
 
 // Timers
 SimpleTimer timer;
-int rangeTimerID;
-int motionTimerID;
-int flowTimerID;
+int rangeTimerID = -1;
+int motionTimerID = -1;
+int flowTimerID = -1;
+int lidarTimerID = -1;
 
 // Buzzer stuff
 int beepCount = 0;
 int maxBeeps = 0;
 
 // Data storage
-JsonObject<11> trafficEntry;
+JsonObject<13> trafficEntry;
 StraightBuffer sendBuffer(SEND_BUFFER_SIZE);
 
 // Serial commands
@@ -72,7 +78,7 @@ void setup()
 	// Start up comms
 	Log.Init(LOGGER_LEVEL, SERIAL_BAUD);
 	Log.Info(P("Traffic Counter - ver %d"), TRAFFIC_COUNTER_VERSION);
-  
+
 	// Start up sensors
 	startBuzzer();
 	startSensors();
@@ -113,10 +119,14 @@ void startSensors(){
 	trafficEntry["of_status"] = false;
 	trafficEntry["of_connected"] = false;
 
+	trafficEntry["count_lidar"] = 0;
+	trafficEntry["lidar_range"] = 0;
+
 	startRangefinder();
+	startLidar();
 	startMotionDetector();
 	startOpticalFlow();
-	}
+}
 
 /**
 * Check serial comms for incoming commands
@@ -133,7 +143,7 @@ void checkSerial(){
 */
 void addSerialCommands(){
 	commandHandler.setTerminator(COMMAND_TERMINATOR);
-	
+
 	commandHandler.addCommand(RESET_UVD_COUNT, resetRangeCount);
 	commandHandler.addCommand(DISABLE_UVD, startRangefinder);
 	commandHandler.addCommand(ENABLE_UVD, stopRangefinder);
@@ -166,45 +176,49 @@ void printData(){
 *
 * A baseline range (to the ground or static surrounds) is established for
 * comparing against new measuremets.
-* 
+*
 */
 void startRangefinder(){
 
 	// Configure control pint
 	enableRangefinder();
 
-	Log.Debug(P("Establishing baseline range..."));
+	Log.Debug(P("Ultrasonic - Establishing baseline range..."));
+	rangeBaseline = getRangefinderBaseline(BASELINE_VARIANCE_THRESHOLD);
 
+	Log.Debug(P("Ultrasonic Baseline established: %d cm, %d cm variance"), rangeBaseline, BASELINE_VARIANCE_THRESHOLD);
+	trafficEntry["range"] = rangeBaseline;
+	printData();
+
+	rangeTimerID = timer.setInterval(CHECK_RANGE_INTERVAL, checkRange);
+}
+
+/**
+* Establish the baseline range from the sensor to the ground
+* The sensor will take samples until the readings are consistent
+*/
+int getRangefinderBaseline(int variance){
 	// Establish baseline (fixed height) of the range sensor
 	int averageRange = getRange();
 	int baselineReads = 1;
 	int averageVariance = 500;
 
 	// Keep reading in the baseline until it stablises
-	while (baselineReads < MIN_BASELINE_READS || averageVariance > BASELINE_VARIANCE_THRESHOLD){
+	while (baselineReads < MIN_BASELINE_READS || averageVariance > variance){
 		int newRange = getRange();
 		int newVariance = (averageRange - newRange);
-		if (newVariance < 0){newVariance *= -1;}
-		
-		averageVariance = ((averageVariance + newVariance)/2);
-		averageRange = ((averageRange + newRange)/2);
+		if (newVariance < 0){ newVariance *= -1; }
 
-		Log.Debug(P("Calibration: Range - %d, Variance - %d"), int(averageRange), averageVariance);
+		averageVariance = ((averageVariance + newVariance) / 2);
+		averageRange = ((averageRange + newRange) / 2);
+
+		Log.Debug(P("Ultrasonic Calibration: Range - %d, Variance - %d"), int(averageRange), averageVariance);
 
 		baselineReads++;
 		delay(BASELINE_READ_INTERVAL);
 	}
-	
-	// Baseline finished
-	rangeBaseline = averageRange;
-	rangeVariance = averageVariance;
 
-	Log.Debug(P("Baseline established: %d cm, %d cm variance"), averageRange, averageVariance);
-	trafficEntry["range"] = averageRange;
-	printData();
-
-	rangeTimerID = timer.setInterval(CHECK_RANGE_INTERVAL, checkRange);
-
+	return averageRange;
 }
 
 /**
@@ -237,7 +251,7 @@ void disableRangefinder(){
 */
 int getRange(){
 	int targetDistance = rangeSensor.getRange();
-	Log.Debug(P("Range: %d cm"), targetDistance);
+	Log.Debug(P("Ultrasonic Range: %d cm"), targetDistance);
 	return targetDistance;
 }
 
@@ -253,7 +267,7 @@ void checkRange(){
 	int newRange = getRange();
 
 	trafficEntry["range"] = newRange;
-	
+
 	// Detection occurs when target breaks the LoS to the baseline
 	if ((rangeBaseline - newRange) > RANGE_DETECT_THRESHOLD && (lastRange - newRange) > RANGE_DETECT_THRESHOLD){
 
@@ -268,8 +282,6 @@ void checkRange(){
 		printData();
 		beep(NUM_BEEPS_UVD);
 	}
-
-	
 }
 
 /**
@@ -279,6 +291,127 @@ void resetRangeCount(){
 	trafficEntry["count_uvd"] = 0;
 	Log.Info(P("Traffic count reset - UVD"));
 }
+
+
+//////////////////////////////////////////////////////////////////////////
+// Lidar
+
+/**
+* Start the rangefinder sensor
+*
+* A baseline range (to the ground or static surrounds) is established for
+* comparing against new measuremets.
+*
+*/
+void startLidar(){
+	pinMode(LIDAR_TRIGGER_PIN, INPUT);
+	pinMode(LIDAR_DETECT_PIN, INPUT);
+	pinMode(LIDAR_CONTROL_PIN, OUTPUT);
+
+	enableLidar();
+
+	Log.Debug(P("Lidar - Establishing baseline range..."));
+	lidarBaselineRange = getLidarBaselineRange(BASELINE_VARIANCE_THRESHOLD);
+	Log.Debug(P("Lidar Baseline established: %d cm, %d cm variance"), lidarBaselineRange, BASELINE_VARIANCE_THRESHOLD);
+
+	lidarTimerID = timer.setInterval(LIDAR_CHECK_RANGE_INTERVAL, checkLidarRange);
+}
+
+/**
+* Establish the baseline range from the lidar to the ground
+* The sensor will take samples until the readings are consistent
+*/
+int getLidarBaselineRange(int variance){
+	// Establish baseline (fixed height) of the range sensor
+	int averageRange = getLidarRange();
+	int baselineReads = 1;
+	int averageVariance = 500;
+
+	// Keep reading in the baseline until it stablises
+	while (baselineReads < MIN_BASELINE_READS || averageVariance > variance){
+		int newRange = getLidarRange();
+		int newVariance = (averageRange - newRange);
+		if (newVariance < 0){ newVariance *= -1; }
+
+		averageVariance = ((averageVariance + newVariance) / 2);
+		averageRange = ((averageRange + newRange) / 2);
+
+		Log.Debug(P("Lidar Calibration: Range - %d, Variance - %d"), int(averageRange), averageVariance);
+
+		baselineReads++;
+		delay(BASELINE_READ_INTERVAL);
+	}
+
+	return averageRange;
+}
+
+/**
+* Stop reading the lidar and disable the sensor
+*/
+void stopLidar(){
+	disableLidar();
+	timer.deleteTimer(lidarTimerID);
+}
+
+/**
+* Allow the lidar to send ping signals
+*/
+void enableLidar(){
+	digitalWrite(LIDAR_CONTROL_PIN, HIGH);
+}
+
+/**
+* Stop sending range pings.
+*/
+void disableLidar(){
+	digitalWrite(LIDAR_CONTROL_PIN, LOW);
+}
+
+/**
+* Get the range in cm from the lidar
+*
+* @return Target distance from sensor in cm
+*/
+int getLidarRange(){
+	int targetDistance = lidar.getDistance();
+	Log.Debug(P("Lidar Range: %d cm"), targetDistance);
+	return targetDistance;
+}
+
+/**
+* Check the lidar to see if a traffic event has occurred.
+*
+* Traffic events are counted as a break in the sensor's 'view' of the ground.
+* Any object between the sensor and the ground baseline will cause the sensor
+* to register a shorter range than usual.
+*/
+void checkLidarRange(){
+	int lastRange = trafficEntry["lidar_range"];
+	int newRange = getLidarRange();
+
+	trafficEntry["lidar_range"] = newRange;
+
+	// Detection occurs when target breaks the LoS to the baseline
+	if ((rangeBaseline - newRange) > RANGE_DETECT_THRESHOLD && (lastRange - newRange) > RANGE_DETECT_THRESHOLD){
+
+		// Increase traffic count
+		int trafficCount = trafficEntry["count_lidar"];
+		trafficCount++;
+		trafficEntry["count_lidar"] = trafficCount;
+
+		Log.Debug(P("Traffic count - Lidar: %d counts"), trafficCount);
+
+		printData();
+		beep(NUM_BEEPS_LIDAR);
+	}
+}
+
+/**
+* Reset the traffic count for the lidar
+*/
+void resetLidarCount(){
+	trafficEntry["count_lidar"] = 0;
+} 
 
 
 //////////////////////////////////////////////////////////////////////////
@@ -319,7 +452,7 @@ void stopMotionDetector(){
 *	True if motion has been detected recently
 */
 void getMotion(){
-	
+
 	// Check the sensor
 	if (digitalRead(PIR_MOTION_PIN) == MOTION_DETECTED){
 
@@ -344,7 +477,7 @@ void getMotion(){
 		// No alarm; is fine
 		motionDetected = false;
 	}
-	
+
 
 	trafficEntry["pir_status"] = motionDetected;
 }
@@ -479,7 +612,7 @@ bool checkOpticalFlowConnection(){
 
 /**
 * Stop monitoring the optical flow sensor for a cooldown period.
-* Meant to be used immediately following detection events to avoid 
+* Meant to be used immediately following detection events to avoid
 * multiple detections for the same event
 */
 void opticalFlowCooldown(){
@@ -507,7 +640,7 @@ void startBuzzer(){
 }
 
 /**
-* Beep the buzzer once. 
+* Beep the buzzer once.
 * Uses a timeout event to turn the buzzer off
 */
 void beep(){

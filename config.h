@@ -17,6 +17,11 @@ const byte OPTICAL_FLOW_CHIP_SELECT_PIN = 41;
 
 const byte BUZZER_PIN = 38;
 
+const byte LIDAR_TRIGGER_PIN = A13;
+const byte LIDAR_DETECT_PIN = A14;
+const byte LIDAR_CONTROL_PIN = 0;
+
+
 
 // Timer config
 const int CHECK_MOTION_INTERVAL = 1000;
@@ -27,6 +32,9 @@ const int FLOW_COOLDOWN = 2000; // Optical flow detection cooldown in ms
 
 const int CHECK_RANGE_INTERVAL = 100;
 const int RANGE_DETECT_THRESHOLD = 50; // Minimum threshold for range detection in cm. (Target must move at least this much) 
+
+const int LIDAR_CHECK_RANGE_INTERVAL = 200;
+const int LIDAR_DETECT_THRESHOLD = 50;
 
 const long LOG_TIMER_INTERVAL = 5000; // Time in between SD card log entries in ms.
 
