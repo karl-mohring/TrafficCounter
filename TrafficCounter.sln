@@ -5,6 +5,16 @@ VisualStudioVersion = 12.0.31101.0
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "TrafficCounter", "TrafficCounter.vcxproj", "{ADDB949B-D1C8-4840-8DD5-AA0B8043EB26}"
 EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "LidarCheck", "Pre-deployment Checks\LidarCheck\LidarCheck.vcxproj", "{F638B850-BBA0-436E-81DA-946848FA90DB}"
+EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "LIDARLite_I2C_Library_GetDistance_ContinuousRead", "..\Libraries\LIDARduino\examples\LIDARLite_I2C_Library_GetDistance_ContinuousRead\LIDARLite_I2C_Library_GetDistance_ContinuousRead.vcxproj", "{F2819332-1A31-4B50-AF1D-6E44E6BED162}"
+EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "readDistanceBasic", "..\Libraries\LIDARduino\examples\readDistanceBasic\readDistanceBasic.vcxproj", "{0B0D77E6-9D1F-4CC0-B83B-77CAD6D06D88}"
+EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "OpticalFlowCalibration", "Pre-deployment Checks\OpticalFlowCalibration\OpticalFlowCalibration.vcxproj", "{6A28AE15-0A02-4D03-88DA-78AE9AE715CD}"
+EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "UVDCheck", "Pre-deployment Checks\UVDCheck\UVDCheck.vcxproj", "{DD78EFE4-F1FD-48E5-A0E7-5C1EB9130ADC}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Win32 = Debug|Win32
@@ -15,6 +25,26 @@ Global
 		{ADDB949B-D1C8-4840-8DD5-AA0B8043EB26}.Debug|Win32.Build.0 = Debug|Win32
 		{ADDB949B-D1C8-4840-8DD5-AA0B8043EB26}.Release|Win32.ActiveCfg = Release|Win32
 		{ADDB949B-D1C8-4840-8DD5-AA0B8043EB26}.Release|Win32.Build.0 = Release|Win32
+		{F638B850-BBA0-436E-81DA-946848FA90DB}.Debug|Win32.ActiveCfg = Debug|Win32
+		{F638B850-BBA0-436E-81DA-946848FA90DB}.Debug|Win32.Build.0 = Debug|Win32
+		{F638B850-BBA0-436E-81DA-946848FA90DB}.Release|Win32.ActiveCfg = Release|Win32
+		{F638B850-BBA0-436E-81DA-946848FA90DB}.Release|Win32.Build.0 = Release|Win32
+		{F2819332-1A31-4B50-AF1D-6E44E6BED162}.Debug|Win32.ActiveCfg = Debug|Win32
+		{F2819332-1A31-4B50-AF1D-6E44E6BED162}.Debug|Win32.Build.0 = Debug|Win32
+		{F2819332-1A31-4B50-AF1D-6E44E6BED162}.Release|Win32.ActiveCfg = Release|Win32
+		{F2819332-1A31-4B50-AF1D-6E44E6BED162}.Release|Win32.Build.0 = Release|Win32
+		{0B0D77E6-9D1F-4CC0-B83B-77CAD6D06D88}.Debug|Win32.ActiveCfg = Debug|Win32
+		{0B0D77E6-9D1F-4CC0-B83B-77CAD6D06D88}.Debug|Win32.Build.0 = Debug|Win32
+		{0B0D77E6-9D1F-4CC0-B83B-77CAD6D06D88}.Release|Win32.ActiveCfg = Release|Win32
+		{0B0D77E6-9D1F-4CC0-B83B-77CAD6D06D88}.Release|Win32.Build.0 = Release|Win32
+		{6A28AE15-0A02-4D03-88DA-78AE9AE715CD}.Debug|Win32.ActiveCfg = Debug|Win32
+		{6A28AE15-0A02-4D03-88DA-78AE9AE715CD}.Debug|Win32.Build.0 = Debug|Win32
+		{6A28AE15-0A02-4D03-88DA-78AE9AE715CD}.Release|Win32.ActiveCfg = Release|Win32
+		{6A28AE15-0A02-4D03-88DA-78AE9AE715CD}.Release|Win32.Build.0 = Release|Win32
+		{DD78EFE4-F1FD-48E5-A0E7-5C1EB9130ADC}.Debug|Win32.ActiveCfg = Debug|Win32
+		{DD78EFE4-F1FD-48E5-A0E7-5C1EB9130ADC}.Debug|Win32.Build.0 = Debug|Win32
+		{DD78EFE4-F1FD-48E5-A0E7-5C1EB9130ADC}.Release|Win32.ActiveCfg = Release|Win32
+		{DD78EFE4-F1FD-48E5-A0E7-5C1EB9130ADC}.Release|Win32.Build.0 = Release|Win32
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

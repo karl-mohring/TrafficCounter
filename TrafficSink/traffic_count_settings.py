@@ -22,11 +22,11 @@ PACKET_STOP = '$'
 TRAFFIC_KEY_MAP = {
 
     "count_uvd": "field1",
-    "range": "field2",
+    "uvd_range": "field2",
     "count_pir": "field3",
     "count_of": "field4",
-    "of_dx": "field5",
-    "of_dy": "field6",
+    "count_lidar": "field5",
+    "lidar_range": "field6",
 }
 
 TRAFFIC_CHANNEL_MAP = {

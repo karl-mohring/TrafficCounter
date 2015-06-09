@@ -18,6 +18,9 @@ void setup()
 
 	flowSensor.init();
 
+	flowSensor.set_frame_rate_auto(true);
+	flowSensor.set_shutter_speed_auto(true);
+	flowSensor.set_resolution(1600);
 
 	byte productID = flowSensor.read_register(ADNS3080_PRODUCT_ID);
 	Log.Info("Product ID:  %X", productID);

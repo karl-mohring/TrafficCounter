@@ -9,6 +9,7 @@ const int LOGGER_LEVEL = LOG_LEVEL_DEBUG;
 // Pin assignments
 const byte RANGEFINDER_AN_PIN = A0;
 const byte RANGEFINDER_CONTROL_PIN = A1;
+const byte RANGEFINDER_POWER_PIN = A2;
 
 const byte PIR_MOTION_PIN = A9;
 const byte PIR_CONTROL_PIN = A7;
@@ -30,7 +31,7 @@ const int MOTION_COOLDOWN = 5000; // Time left for the PIR sensor to cool down a
 const int CHECK_FLOW_INTERVAL = 200;
 const int FLOW_COOLDOWN = 2000; // Optical flow detection cooldown in ms
 
-const int CHECK_RANGE_INTERVAL = 100;
+const int CHECK_RANGE_INTERVAL = 200;
 const int RANGE_DETECT_THRESHOLD = 50; // Minimum threshold for range detection in cm. (Target must move at least this much) 
 
 const int LIDAR_CHECK_RANGE_INTERVAL = 200;
@@ -62,8 +63,23 @@ const char ENABLE_UVD = 'e';
 
 // Buzzer
 const int BUZZER_BEEP_PERIOD = 10; // Beep length in ms
-const byte NUM_BEEPS_UVD = 2;
+const int BUZZER_BEEP_QUIET_PERIOD = 50; // Beep 'downtime' in ms
+const byte NUM_BEEPS_UVD = 0;
 const byte NUM_BEEPS_PIR = 1;
-const byte NUM_BEEPS_LIDAR = 0;
-const byte NUM_BEEPS_OF = 4;
+const byte NUM_BEEPS_LIDAR = 2;
+const byte NUM_BEEPS_OF = 0;
 
+// JSON string tags
+const char ID[] = "id";
+const char VERSION[] = "version";
+const char COUNT_UVD[] = "count_uvd";
+const char UVD_RANGE[] = "uvd_range";
+const char COUNT_PIR[] = "count_pir";
+const char PIR_STATUS[] = "pir_status";
+const char COUNT_OF[] = "count_of";
+const char OF_X_OFFSET[] = "of_dx";
+const char OF_Y_OFFSET[] = "of_dy";
+const char OF_STATUS[] = "of_status";
+const char OF_CONNECTED[] = "of_connected";
+const char COUNT_LIDAR[] = "count_lidar";
+const char LIDAR_RANGE[] = "lidar_range";

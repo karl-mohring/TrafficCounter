@@ -1,5 +1,7 @@
+#!/usr/bin/env python
+
 from SinkNode.Processor.ThingspeakProcessor import ThingspeakProcessor
-from SinkNode.Reader.SerialReader import SerialReader
+from SinkNode.Reader.StandardInReader import StandardInReader
 from SinkNode import *
 from traffic_count_settings import *
 
@@ -20,19 +22,10 @@ def start_logger():
         file_handler.setLevel(file_logger_level)
         logger.addHandler(file_handler)
 
-
-def start_sink():
-    pass
-
-
 if __name__ == '__main__':
     start_logger()
 
-    reader = SerialReader(port=SERIAL_PORT,
-                          baud_rate=SERIAL_BAUD,
-                          start_delimiter=PACKET_START,
-                          stop_delimiter=PACKET_STOP,
-                          logger_name=logger_name)
+    reader = StandardInReader(logger_name=logger_name)
 
     processor = ThingspeakProcessor(key_map=TRAFFIC_KEY_MAP,
                                     channel_map=TRAFFIC_CHANNEL_MAP)

@@ -1,3 +1,4 @@
+#include <I2C.h>
 #include <LIDARLite_registers.h>
 #include <LIDARduino.h>
 #include <ADNS3080.h>
@@ -15,7 +16,7 @@
 
 using namespace ArduinoJson::Generator;
 
-const float TRAFFIC_COUNTER_VERSION = 2;
+const int TRAFFIC_COUNTER_VERSION = 4;
 
 //////////////////////////////////////////////////////////////////////////
 // Traffic Counter
@@ -32,7 +33,7 @@ Maxbotix rangeSensor(RANGEFINDER_AN_PIN, Maxbotix::AN, Maxbotix::XL);
 int rangeBaseline;
 
 // Lidar
-LIDAR_Lite_PWM lidar(LIDAR_TRIGGER_PIN, LIDAR_DETECT_PIN);
+LIDAR_Lite_I2C lidar;
 int lidarBaselineRange;
 
 // PIR motion
@@ -104,23 +105,23 @@ void loop()
 * Enable and configure the sensor suite for reading
 */
 void startSensors(){
-	trafficEntry["id"] = "trafficCount";
-	trafficEntry["version"] = TRAFFIC_COUNTER_VERSION;
+	trafficEntry[ID] = "trafficCount";
+	trafficEntry[VERSION] = TRAFFIC_COUNTER_VERSION;
 
-	trafficEntry["count_uvd"] = 0;
-	trafficEntry["range"] = 0;
+	trafficEntry[COUNT_UVD] = 0;
+	trafficEntry[UVD_RANGE] = 0;
 
-	trafficEntry["count_pir"] = 0;
-	trafficEntry["pir_status"] = false;
+	trafficEntry[COUNT_PIR] = 0;
+	trafficEntry[PIR_STATUS] = false;
 
-	trafficEntry["count_of"] = 0;
-	trafficEntry["of_dx"] = 0;
-	trafficEntry["of_dy"] = 0;
-	trafficEntry["of_status"] = false;
-	trafficEntry["of_connected"] = false;
+	trafficEntry[COUNT_OF] = 0;
+	trafficEntry[OF_X_OFFSET] = 0;
+	trafficEntry[OF_Y_OFFSET] = 0;
+	trafficEntry[OF_STATUS] = false;
+	trafficEntry[OF_CONNECTED] = false;
 
-	trafficEntry["count_lidar"] = 0;
-	trafficEntry["lidar_range"] = 0;
+	trafficEntry[COUNT_LIDAR] = 0;
+	trafficEntry[LIDAR_RANGE] = 0;
 
 	startRangefinder();
 	startLidar();
@@ -187,7 +188,7 @@ void startRangefinder(){
 	rangeBaseline = getRangefinderBaseline(BASELINE_VARIANCE_THRESHOLD);
 
 	Log.Debug(P("Ultrasonic Baseline established: %d cm, %d cm variance"), rangeBaseline, BASELINE_VARIANCE_THRESHOLD);
-	trafficEntry["range"] = rangeBaseline;
+	trafficEntry[UVD_RANGE] = rangeBaseline;
 	printData();
 
 	rangeTimerID = timer.setInterval(CHECK_RANGE_INTERVAL, checkRange);
@@ -263,18 +264,18 @@ int getRange(){
 * to register a shorter range than usual.
 */
 void checkRange(){
-	int lastRange = trafficEntry["range"];
+	int lastRange = trafficEntry[UVD_RANGE];
 	int newRange = getRange();
 
-	trafficEntry["range"] = newRange;
+	trafficEntry[UVD_RANGE] = newRange;
 
 	// Detection occurs when target breaks the LoS to the baseline
 	if ((rangeBaseline - newRange) > RANGE_DETECT_THRESHOLD && (lastRange - newRange) > RANGE_DETECT_THRESHOLD){
 
 		// Increase traffic count
-		int trafficCount = trafficEntry["count_uvd"];
+		int trafficCount = trafficEntry[COUNT_UVD];
 		trafficCount++;
-		trafficEntry["count_uvd"] = trafficCount;
+		trafficEntry[COUNT_UVD] = trafficCount;
 
 		Log.Debug(P("Traffic count - UVD: %d counts"), trafficCount);
 
@@ -288,7 +289,7 @@ void checkRange(){
 * Reset the traffic count for the ultrasonic rangefinder
 */
 void resetRangeCount(){
-	trafficEntry["count_uvd"] = 0;
+	trafficEntry[COUNT_UVD] = 0;
 	Log.Info(P("Traffic count reset - UVD"));
 }
 
@@ -309,6 +310,7 @@ void startLidar(){
 	pinMode(LIDAR_CONTROL_PIN, OUTPUT);
 
 	enableLidar();
+	lidar.begin();
 
 	Log.Debug(P("Lidar - Establishing baseline range..."));
 	lidarBaselineRange = getLidarBaselineRange(BASELINE_VARIANCE_THRESHOLD);
@@ -386,18 +388,18 @@ int getLidarRange(){
 * to register a shorter range than usual.
 */
 void checkLidarRange(){
-	int lastRange = trafficEntry["lidar_range"];
+	int lastRange = trafficEntry[LIDAR_RANGE];
 	int newRange = getLidarRange();
 
-	trafficEntry["lidar_range"] = newRange;
+	trafficEntry[LIDAR_RANGE] = newRange;
 
 	// Detection occurs when target breaks the LoS to the baseline
-	if ((rangeBaseline - newRange) > RANGE_DETECT_THRESHOLD && (lastRange - newRange) > RANGE_DETECT_THRESHOLD){
+	if ((lidarBaselineRange - newRange) > RANGE_DETECT_THRESHOLD && (lastRange - newRange) > RANGE_DETECT_THRESHOLD){
 
 		// Increase traffic count
-		int trafficCount = trafficEntry["count_lidar"];
+		int trafficCount = trafficEntry[COUNT_LIDAR];
 		trafficCount++;
-		trafficEntry["count_lidar"] = trafficCount;
+		trafficEntry[COUNT_LIDAR] = trafficCount;
 
 		Log.Debug(P("Traffic count - Lidar: %d counts"), trafficCount);
 
@@ -410,7 +412,7 @@ void checkLidarRange(){
 * Reset the traffic count for the lidar
 */
 void resetLidarCount(){
-	trafficEntry["count_lidar"] = 0;
+	trafficEntry[COUNT_LIDAR] = 0;
 } 
 
 
@@ -429,7 +431,7 @@ void startMotionDetector(){
 	delay(MOTION_INITIALISATION_TIME);
 	motionDetected = false;
 
-	motionTimerID = timer.setInterval(CHECK_MOTION_INTERVAL, getMotion);
+	motionTimerID = timer.setInterval(CHECK_MOTION_INTERVAL, checkPirMotion);
 	Log.Debug(P("Motion started"));
 }
 
@@ -451,7 +453,7 @@ void stopMotionDetector(){
 * Returns:
 *	True if motion has been detected recently
 */
-void getMotion(){
+void checkPirMotion(){
 
 	// Check the sensor
 	if (digitalRead(PIR_MOTION_PIN) == MOTION_DETECTED){
@@ -460,9 +462,9 @@ void getMotion(){
 		Log.Info(P("Motion detected"));
 
 		// Increment PIR count
-		long motionCount = trafficEntry["count_pir"];
+		long motionCount = trafficEntry[COUNT_PIR];
 		motionCount++;
-		trafficEntry["count_pir"] = motionCount;
+		trafficEntry[COUNT_PIR] = motionCount;
 
 		Log.Info(P("Traffic count - PIR: %l counts"), motionCount);
 
@@ -479,7 +481,7 @@ void getMotion(){
 	}
 
 
-	trafficEntry["pir_status"] = motionDetected;
+	trafficEntry[PIR_STATUS] = motionDetected;
 }
 
 /**
@@ -495,14 +497,14 @@ void motionCoolDown(){
 * Start polling the PIR motion sensor
 */
 void resumeMotionDetection(){
-	motionTimerID = timer.setInterval(CHECK_MOTION_INTERVAL, getMotion);
+	motionTimerID = timer.setInterval(CHECK_MOTION_INTERVAL, checkPirMotion);
 }
 
 /**
 * Reset the number of motion detections
 */
 void resetMotionCount(){
-	trafficEntry["count_pir"] = 0;
+	trafficEntry[COUNT_PIR] = 0;
 }
 
 /**
@@ -543,7 +545,7 @@ void startOpticalFlow(){
 
 	if (flowConnected){
 		Log.Debug(P("Optical flow connected. Configuring..."));
-		trafficEntry["of_connected"] = true;
+		trafficEntry[OF_CONNECTED] = true;
 
 		flowSensor.set_frame_rate_auto(true);
 		flowSensor.set_shutter_speed_auto(true);
@@ -573,31 +575,35 @@ void resumeOpticalFlow(){
 * Check the optical flow sensor to see if motion has been detected
 */
 void updateFlowMotion(){
-	trafficEntry["of_connected"] = checkOpticalFlowConnection();
+	bool connected = checkOpticalFlowConnection();
+	trafficEntry[OF_CONNECTED] = connected;
 
-	byte motionRegister = flowSensor.read_register(ADNS3080_MOTION);
-	bool motionDetected = motionRegister & 0x80;
+	if (connected){
+		byte motionRegister = flowSensor.read_register(ADNS3080_MOTION);
+		bool flowDetected = motionRegister & 0x80;
 
-	trafficEntry["of_status"] = motionDetected;
+		trafficEntry[OF_STATUS] = flowDetected;
 
-	// Motion detected - determine the direction
-	if (motionDetected){
-		int8_t of_dx = flowSensor.read_register(ADNS3080_DELTA_X);
-		int8_t of_dy = flowSensor.read_register(ADNS3080_DELTA_Y);
+		// Motion detected - determine the direction
+		if (flowDetected){
+			int8_t of_dx = flowSensor.read_register(ADNS3080_DELTA_X);
+			int8_t of_dy = flowSensor.read_register(ADNS3080_DELTA_Y);
 
-		trafficEntry["of_dx"] = of_dx;
-		trafficEntry["of_dy"] = of_dy;
+			trafficEntry[OF_X_OFFSET] = of_dx;
+			trafficEntry[OF_Y_OFFSET] = of_dy;
 
-		int of_count = trafficEntry["count_of"];
-		of_count++;
-		trafficEntry["count_of"] = of_count;
+			int of_count = trafficEntry[COUNT_OF];
+			of_count++;
+			trafficEntry[COUNT_OF] = of_count;
 
-		Log.Debug(P("Traffic Count - OF: %d counts"), of_count);
-		opticalFlowCooldown();
+			Log.Debug(P("Traffic Count - OF: %d counts"), of_count);
+			opticalFlowCooldown();
 
-		printData();
-		beep(NUM_BEEPS_OF);
+			printData();
+			beep(NUM_BEEPS_OF);
+		}
 	}
+
 }
 
 /**
@@ -624,7 +630,7 @@ void opticalFlowCooldown(){
 * Reset the traffic count for the optical flow sensor
 */
 void resetFlowCount(){
-	trafficEntry["of_count"] = 0;
+	trafficEntry[COUNT_OF] = 0;
 }
 
 
@@ -669,7 +675,7 @@ void beepCheck(){
 
 	if (beepCount < maxBeeps){
 		beepCount++;
-		timer.setTimeout(BUZZER_BEEP_PERIOD, beep);
+		timer.setTimeout(BUZZER_BEEP_QUIET_PERIOD, beep);
 	}
 }
 

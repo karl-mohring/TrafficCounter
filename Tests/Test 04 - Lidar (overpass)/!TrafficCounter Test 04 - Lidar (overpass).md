@@ -7,6 +7,9 @@ Intro
 Aims
 ----
 
+1) Test the new Lidar sensor to see if it more stable and accurate compared to the ultrasonic rangefinder (historically)
+
+2) Test the new narrow-beam ultrasonic sensor 
 
 Methodology
 ===========
@@ -42,7 +45,25 @@ Test location
 Pre-Flight Checks
 -----------------
 
+Lidar
+ - Baseline range of 518cm to the ground
+ - No problems, seemed to detect just fine with a hand 30cm away from the sensor
 
+OF
+ - Sensor is now auto-adjusting to changes in light
+ - can clearly see hand in frame from 50cm away
+ - Motion not registered by sensor, but can see image at least...
+
+Sonar
+ - Baseline range of 626cm from the ground
+ - readings are very twitchy, causing constant false detections
+ - Readings appear to be defaulting to 626, rather than a baseline
+ - Sensor is now operating off 3V3, which may be affecting its range
+
+PIR
+- Seems to be operating fine
+- Hand gives a positive detection from 30cm away
+-
 
 Test Procedure
 ---------
@@ -85,9 +106,13 @@ Optical Flow
 
 
 
-Further Recommendations
+Lidar
 -----------------------
 
+- Detection circle on ground appears to be a zone of 4cm radius
+- Circle is not directly underneath the sensor, appearing approx. 1m to the right when looking down onto the road
+- With a theoretical FOV of 3°, the detection circle should be approx. 25cm wide. 
+- The detection circle is about right
 
 
 
