@@ -8,18 +8,18 @@ const int LOGGER_LEVEL = LOG_LEVEL_DEBUG;
 
 // Pin assignments
 const byte RANGEFINDER_AN_PIN = A0;
-const byte RANGEFINDER_CONTROL_PIN = A1;
-const byte RANGEFINDER_POWER_PIN = A2;
+const byte RANGEFINDER_CONTROL_PIN = 13;
+const byte RANGEFINDER_POWER_PIN = 0;
 
-const byte PIR_MOTION_PIN = A9;
-const byte PIR_CONTROL_PIN = A7;
+const byte PIR_MOTION_PIN = 2;
+const byte PIR_CONTROL_PIN = 0;
 
-const byte OPTICAL_FLOW_CHIP_SELECT_PIN = 41;
+const byte OPTICAL_FLOW_CHIP_SELECT_PIN = 3;
 
-const byte BUZZER_PIN = 38;
+const byte BUZZER_PIN = 12;
 
-const byte LIDAR_TRIGGER_PIN = A13;
-const byte LIDAR_DETECT_PIN = A14;
+const byte LIDAR_TRIGGER_PIN = 0;
+const byte LIDAR_DETECT_PIN = 0;
 const byte LIDAR_CONTROL_PIN = 0;
 
 

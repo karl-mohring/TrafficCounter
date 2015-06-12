@@ -106,7 +106,7 @@ void getMotion(){
 void motionCoolDown(){
 	timer.deleteTimer(motionTimerID);
 	motionTimerID = -1;
-	timer.setTimeout(MOTION_TIMEOUT, resumeMotionDetection);
+	timer.setTimeout(MOTION_COOLDOWN, resumeMotionDetection);
 }
 
 /**

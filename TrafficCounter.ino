@@ -1,3 +1,5 @@
+#include <Console.h>
+#include <Bridge.h>
 #include <I2C.h>
 #include <LIDARLite_registers.h>
 #include <LIDARduino.h>
@@ -25,8 +27,11 @@ const int TRAFFIC_COUNTER_VERSION = 4;
 // from a distance. 
 //
 //////////////////////////////////////////////////////////////////////////
-// Config
+
+
 //////////////////////////////////////////////////////////////////////////
+// Config
+
 
 // Rangefinder
 Maxbotix rangeSensor(RANGEFINDER_AN_PIN, Maxbotix::AN, Maxbotix::XL);
@@ -77,7 +82,14 @@ long entryNumber;
 void setup()
 {
 	// Start up comms
-	Log.Init(LOGGER_LEVEL, SERIAL_BAUD);
+	//Serial1.begin(57600);
+
+	Bridge.begin();
+
+	Serial.begin(57600);
+	Log.Init(LOGGER_LEVEL, Serial);
+
+
 	Log.Info(P("Traffic Counter - ver %d"), TRAFFIC_COUNTER_VERSION);
 
 	// Start up sensors
@@ -163,9 +175,9 @@ void defaultHandler(char c){
 * Print the current traffic counts and info to Serial
 */
 void printData(){
-	Serial.print("#");
-	trafficEntry.printTo(Serial);
-	Serial.println("$");
+	Serial1.print("#");
+	trafficEntry.printTo(Serial1);
+	Serial1.println("$");
 }
 
 
@@ -268,6 +280,9 @@ void checkRange(){
 	int newRange = getRange();
 
 	trafficEntry[UVD_RANGE] = newRange;
+
+	//DELETE ME! Shitty test code!
+	printData();
 
 	// Detection occurs when target breaks the LoS to the baseline
 	if ((rangeBaseline - newRange) > RANGE_DETECT_THRESHOLD && (lastRange - newRange) > RANGE_DETECT_THRESHOLD){

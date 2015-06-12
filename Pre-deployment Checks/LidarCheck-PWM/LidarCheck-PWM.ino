@@ -9,7 +9,7 @@
 #include <Console.h>
 #include "Arduino.h"
 
-LIDAR_Lite_I2C lidar;
+LIDAR_Lite_PWM lidar(4, 5);
 SimpleTimer timer;
 int lidarTimerID;
 

@@ -1,10 +1,17 @@
+#include <YunServer.h>
+#include <YunClient.h>
+#include <Process.h>
+#include <Mailbox.h>
+#include <HttpClient.h>
+#include <FileIO.h>
+#include <Console.h>
+#include <Bridge.h>
 #include <ProgmemString.h>
 #include <Logging.h>
 #include <JsonParser.h>
 #include <JsonGenerator.h>
 #include <Maxbotix.h>
 #include <SimpleTimer.h>
-
 #include "config.h"
 
 using namespace ArduinoJson::Generator;
@@ -41,6 +48,10 @@ int rangeTimerID;
 * Startup code - Run once
 */
 void setup(){
+	/*Bridge.begin();
+	Console.begin();
+	while (!Console);
+*/
 	// Start up comms
 	Log.Init(LOGGER_LEVEL, SERIAL_BAUD);
 	Log.Info(P("Traffic Counter - Rangefinder test"));
