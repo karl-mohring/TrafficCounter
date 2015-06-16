@@ -1,0 +1,46 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio 2013
+VisualStudioVersion = 12.0.31101.0
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "LidarCheck", "LidarCheck.vcxproj", "{F638B850-BBA0-436E-81DA-946848FA90DB}"
+EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "TrafficCounter", "..\..\TrafficCounter.vcxproj", "{ADDB949B-D1C8-4840-8DD5-AA0B8043EB26}"
+EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "ldfsd", "..\..\..\ldfsd\ldfsd.vcxproj", "{F26B1C62-488B-478B-ACB7-413E42E173FD}"
+EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "readDistanceBasic", "..\..\..\Libraries\LIDARduino\examples\readDistanceBasic\readDistanceBasic.vcxproj", "{0B0D77E6-9D1F-4CC0-B83B-77CAD6D06D88}"
+EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "LidarCheck-PWM", "..\LidarCheck-PWM\LidarCheck-PWM.vcxproj", "{E70119E5-6543-44D2-B290-F1138EBC5B46}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Win32 = Debug|Win32
+		Release|Win32 = Release|Win32
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{F638B850-BBA0-436E-81DA-946848FA90DB}.Debug|Win32.ActiveCfg = Debug|Win32
+		{F638B850-BBA0-436E-81DA-946848FA90DB}.Debug|Win32.Build.0 = Debug|Win32
+		{F638B850-BBA0-436E-81DA-946848FA90DB}.Release|Win32.ActiveCfg = Release|Win32
+		{F638B850-BBA0-436E-81DA-946848FA90DB}.Release|Win32.Build.0 = Release|Win32
+		{ADDB949B-D1C8-4840-8DD5-AA0B8043EB26}.Debug|Win32.ActiveCfg = Debug|Win32
+		{ADDB949B-D1C8-4840-8DD5-AA0B8043EB26}.Debug|Win32.Build.0 = Debug|Win32
+		{ADDB949B-D1C8-4840-8DD5-AA0B8043EB26}.Release|Win32.ActiveCfg = Release|Win32
+		{ADDB949B-D1C8-4840-8DD5-AA0B8043EB26}.Release|Win32.Build.0 = Release|Win32
+		{F26B1C62-488B-478B-ACB7-413E42E173FD}.Debug|Win32.ActiveCfg = Debug|Win32
+		{F26B1C62-488B-478B-ACB7-413E42E173FD}.Debug|Win32.Build.0 = Debug|Win32
+		{F26B1C62-488B-478B-ACB7-413E42E173FD}.Release|Win32.ActiveCfg = Release|Win32
+		{F26B1C62-488B-478B-ACB7-413E42E173FD}.Release|Win32.Build.0 = Release|Win32
+		{0B0D77E6-9D1F-4CC0-B83B-77CAD6D06D88}.Debug|Win32.ActiveCfg = Debug|Win32
+		{0B0D77E6-9D1F-4CC0-B83B-77CAD6D06D88}.Debug|Win32.Build.0 = Debug|Win32
+		{0B0D77E6-9D1F-4CC0-B83B-77CAD6D06D88}.Release|Win32.ActiveCfg = Release|Win32
+		{0B0D77E6-9D1F-4CC0-B83B-77CAD6D06D88}.Release|Win32.Build.0 = Release|Win32
+		{E70119E5-6543-44D2-B290-F1138EBC5B46}.Debug|Win32.ActiveCfg = Debug|Win32
+		{E70119E5-6543-44D2-B290-F1138EBC5B46}.Debug|Win32.Build.0 = Debug|Win32
+		{E70119E5-6543-44D2-B290-F1138EBC5B46}.Release|Win32.ActiveCfg = Release|Win32
+		{E70119E5-6543-44D2-B290-F1138EBC5B46}.Release|Win32.Build.0 = Release|Win32
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+EndGlobal

@@ -2,25 +2,27 @@
 #include <Logging.h>
 
 // Comms settings
-const long SERIAL_BAUD = 57600;
+const long SERIAL_BAUD = 115200;
 const int LOGGER_LEVEL = LOG_LEVEL_DEBUG;
 
 
 // Pin assignments
 const byte RANGEFINDER_AN_PIN = A0;
-const byte RANGEFINDER_CONTROL_PIN = 13;
+const byte RANGEFINDER_CONTROL_PIN = 8;
 const byte RANGEFINDER_POWER_PIN = 0;
 
 const byte PIR_MOTION_PIN = 5;
 const byte PIR_CONTROL_PIN = 0;
 
-const byte OPTICAL_FLOW_CHIP_SELECT_PIN = 4;
+const byte OPTICAL_FLOW_CHIP_SELECT_PIN = 9;
 
 const byte BUZZER_PIN = 12;
 
 const byte LIDAR_TRIGGER_PIN = 0;
 const byte LIDAR_DETECT_PIN = 0;
 const byte LIDAR_CONTROL_PIN = 0;
+
+const byte YUN_HANDSHAKE_PIN = 7;
 
 
 

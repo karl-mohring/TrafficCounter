@@ -1,4 +1,4 @@
-
+#include "Arduino.h"
 #include <I2C.h>
 #include <ProgmemString.h>
 #include <SimpleTimer.h>
@@ -6,10 +6,11 @@
 #include <LIDARLite_registers.h>
 #include <LIDARduino.h>
 #include "config.h"
-#include <Console.h>
-#include "Arduino.h"
 
-LIDAR_Lite_I2C lidar;
+
+bool linuxBusy;
+
+LIDAR_Lite_PWM lidar(4, 5);
 SimpleTimer timer;
 int lidarTimerID;
 
@@ -19,25 +20,54 @@ int lidarCount = 0;
 
 void setup()
 {
-	Bridge.begin();
-	Console.begin();
-
-	Console.println("Lidar Check");
-
-	Serial.begin(57600);
-	Log.Init(LOGGER_LEVEL, Serial);
-	Log.Info("LIDAR Check");
-	Console.println("Lidar Check");
-
+	startYunSerial();
 	startLidar();
 }
 
 void loop()
 {
-
 	timer.run();
-
 }
+
+
+//////////////////////////////////////////////////////////////////////////
+// Yun Serial
+
+/**
+* Set up the Arduino-Linux serial bridge
+* Serial output from the Arduino is disabled until the Yun has finished booting
+*/
+void startYunSerial(){
+
+	// Set up the handshake pin
+	pinMode(YUN_HANDSHAKE_PIN, INPUT_PULLUP);
+	pinMode(LED_BUILTIN, OUTPUT);
+
+	Serial1.begin(115200);
+
+	// Check the initial state of the handshake pin (LOW == Ready)
+	_bootStatusChange();
+
+	// Listen on the handshake pin for any changes
+	attachInterrupt(4, _bootStatusChange, CHANGE);
+}
+
+/**
+* Check the boot status of the Yun
+*/
+void _bootStatusChange(){
+	linuxBusy = digitalRead(YUN_HANDSHAKE_PIN);
+	digitalWrite(LED_BUILTIN, linuxBusy);
+
+	// Disable log output until Linux boots
+	if (linuxBusy){
+		Log.Init(LOG_LEVEL_NOOUTPUT, &Serial1);
+	}
+	else{
+		Log.Init(LOGGER_LEVEL, &Serial1);
+	}
+}
+
 
 //////////////////////////////////////////////////////////////////////////
 // Lidar
@@ -122,8 +152,6 @@ void disableLidar(){
 int getLidarRange(){
 	int targetDistance = lidar.getDistance();
 	Log.Debug(P("Lidar Range: %d cm"), targetDistance);
-	Console.print("Range: ");
-	Console.println(targetDistance);
 
 	return targetDistance;
 }

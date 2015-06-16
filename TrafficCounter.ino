@@ -1,7 +1,3 @@
-#include <Console.h>
-#include <Bridge.h>
-#include <I2C.h>
-#include <LIDARLite_registers.h>
 #include <LIDARduino.h>
 #include <ADNS3080.h>
 #include <SPI\SPI.h>
@@ -18,7 +14,7 @@
 
 using namespace ArduinoJson::Generator;
 
-const int TRAFFIC_COUNTER_VERSION = 4;
+const int TRAFFIC_COUNTER_VERSION = 5;
 
 //////////////////////////////////////////////////////////////////////////
 // Traffic Counter
@@ -38,7 +34,7 @@ Maxbotix rangeSensor(RANGEFINDER_AN_PIN, Maxbotix::AN, Maxbotix::XL);
 int rangeBaseline;
 
 // Lidar
-LIDAR_Lite_I2C lidar;
+LIDAR_Lite_PWM lidar(LIDAR_TRIGGER_PIN, LIDAR_DETECT_PIN);
 int lidarBaselineRange;
 
 // PIR motion
@@ -70,6 +66,7 @@ char _commandCache[COMMAND_CACHE_SIZE];
 CommandHandler commandHandler(_commandCache, COMMAND_CACHE_SIZE);
 
 long entryNumber;
+bool linuxBusy;
 
 
 //////////////////////////////////////////////////////////////////////////
@@ -81,15 +78,7 @@ long entryNumber;
 */
 void setup()
 {
-	// Start up comms
-	//Serial1.begin(57600);
-
-	Bridge.begin();
-
-	Serial.begin(57600);
-	Log.Init(LOGGER_LEVEL, Serial);
-
-
+	startYunSerial();
 	Log.Info(P("Traffic Counter - ver %d"), TRAFFIC_COUNTER_VERSION);
 
 	// Start up sensors
@@ -112,6 +101,44 @@ void loop()
 //////////////////////////////////////////////////////////////////////////
 // User Functions
 //////////////////////////////////////////////////////////////////////////
+
+//////////////////////////////////////////////////////////////////////////
+// Yun Serial
+
+/**
+* Set up the Arduino-Linux serial bridge
+* Serial output from the Arduino is disabled until the Yun has finished booting
+*/
+void startYunSerial(){
+
+	// Set up the handshake pin
+	pinMode(YUN_HANDSHAKE_PIN, INPUT_PULLUP);
+	pinMode(LED_BUILTIN, OUTPUT);
+
+	Serial1.begin(115200);
+
+	// Check the initial state of the handshake pin (LOW == Ready)
+	_bootStatusChange();
+
+	// Listen on the handshake pin for any changes
+	attachInterrupt(4, _bootStatusChange, CHANGE);
+}
+
+/**
+* Check the boot status of the Yun
+*/
+void _bootStatusChange(){
+	linuxBusy = digitalRead(YUN_HANDSHAKE_PIN);
+	digitalWrite(LED_BUILTIN, linuxBusy);
+
+	// Disable log output until Linux boots
+	if (linuxBusy){
+		Log.Init(LOG_LEVEL_NOOUTPUT, &Serial1);
+	}
+	else{
+		Log.Init(LOGGER_LEVEL, &Serial1);
+	}
+}
 
 /**
 * Enable and configure the sensor suite for reading
@@ -175,9 +202,11 @@ void defaultHandler(char c){
 * Print the current traffic counts and info to Serial
 */
 void printData(){
-	Serial1.print("#");
-	trafficEntry.printTo(Serial1);
-	Serial1.println("$");
+	if (!linuxBusy){
+		Serial1.print("#");
+		trafficEntry.printTo(Serial1);
+		Serial1.println("$");
+	}
 }
 
 
@@ -281,9 +310,6 @@ void checkRange(){
 
 	trafficEntry[UVD_RANGE] = newRange;
 
-	//DELETE ME! Shitty test code!
-	printData();
-
 	// Detection occurs when target breaks the LoS to the baseline
 	if ((rangeBaseline - newRange) > RANGE_DETECT_THRESHOLD && (lastRange - newRange) > RANGE_DETECT_THRESHOLD){
 
@@ -292,7 +318,7 @@ void checkRange(){
 		trafficCount++;
 		trafficEntry[COUNT_UVD] = trafficCount;
 
-		Log.Debug(P("Traffic count - UVD: %d counts"), trafficCount);
+		Log.Info(P("Traffic count - UVD: %d counts"), trafficCount);
 
 		// Also send an XBee alert
 		printData();
@@ -416,7 +442,7 @@ void checkLidarRange(){
 		trafficCount++;
 		trafficEntry[COUNT_LIDAR] = trafficCount;
 
-		Log.Debug(P("Traffic count - Lidar: %d counts"), trafficCount);
+		Log.Info(P("Traffic count - Lidar: %d counts"), trafficCount);
 
 		printData();
 		beep(NUM_BEEPS_LIDAR);
@@ -442,7 +468,7 @@ void startMotionDetector(){
 
 	pinMode(PIR_MOTION_PIN, INPUT);
 
-	Log.Debug(P("Calibrating motion sensor - wait %d ms"), MOTION_INITIALISATION_TIME);
+	Log.Info(P("Calibrating motion sensor - wait %d ms"), MOTION_INITIALISATION_TIME);
 	delay(MOTION_INITIALISATION_TIME);
 	motionDetected = false;
 
@@ -665,7 +691,7 @@ void startBuzzer(){
 * Uses a timeout event to turn the buzzer off
 */
 void beep(){
-	digitalWrite(BUZZER_PIN, HIGH);
+	digitalWrite(BUZZER_PIN, BUZZER_ON);
 	timer.setTimeout(BUZZER_BEEP_PERIOD, beepCheck);
 }
 
@@ -698,6 +724,6 @@ void beepCheck(){
 * Turn the buzzer off
 */
 void buzzerOff(){
-	digitalWrite(BUZZER_PIN, LOW);
+	digitalWrite(BUZZER_PIN, BUZZER_OFF);
 }
 

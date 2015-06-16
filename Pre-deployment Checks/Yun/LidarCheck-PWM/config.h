@@ -11,18 +11,19 @@ const byte RANGEFINDER_AN_PIN = A0;
 const byte RANGEFINDER_CONTROL_PIN = 8;
 const byte RANGEFINDER_POWER_PIN = 0;
 
-const byte PIR_MOTION_PIN = 6;
+const byte PIR_MOTION_PIN = 5;
 const byte PIR_CONTROL_PIN = 0;
 
-const byte OPTICAL_FLOW_CHIP_SELECT_PIN = 9;
+const byte OPTICAL_FLOW_CHIP_SELECT_PIN = 6;
 
-const byte BUZZER_PIN = 10;
+const byte BUZZER_PIN = 12;
 
-const byte LIDAR_TRIGGER_PIN = 4;
-const byte LIDAR_DETECT_PIN = 5;
+const byte LIDAR_TRIGGER_PIN = 0;
+const byte LIDAR_DETECT_PIN = 0;
 const byte LIDAR_CONTROL_PIN = 0;
 
 const byte YUN_HANDSHAKE_PIN = 7;
+
 
 
 // Timer config
@@ -65,11 +66,9 @@ const char ENABLE_UVD = 'e';
 // Buzzer
 const int BUZZER_BEEP_PERIOD = 10; // Beep length in ms
 const int BUZZER_BEEP_QUIET_PERIOD = 50; // Beep 'downtime' in ms
-const bool BUZZER_ON = HIGH;
-const bool BUZZER_OFF = LOW;
-const byte NUM_BEEPS_UVD = 2;
+const byte NUM_BEEPS_UVD = 0;
 const byte NUM_BEEPS_PIR = 1;
-const byte NUM_BEEPS_LIDAR = 3;
+const byte NUM_BEEPS_LIDAR = 2;
 const byte NUM_BEEPS_OF = 0;
 
 // JSON string tags

@@ -9,7 +9,7 @@
 #include <Console.h>
 #include "Arduino.h"
 
-LIDAR_Lite_PWM lidar(4, 5);
+LIDAR_Lite_I2C lidar;
 SimpleTimer timer;
 int lidarTimerID;
 
@@ -19,22 +19,17 @@ int lidarCount = 0;
 
 void setup()
 {
-	Bridge.begin();
-	Console.begin();
-
-	Console.println("Lidar Check");
-
-	Serial.begin(57600);
-	Log.Init(LOGGER_LEVEL, Serial);
+	Serial1.begin(115200);
+	Log.Init(LOGGER_LEVEL, &Serial1);
 	Log.Info("LIDAR Check");
-	Console.println("Lidar Check");
 
-	startLidar();
+	//startLidar();
 }
 
 void loop()
 {
-
+	Log.Info("DICKS_)");
+	delay(500);
 	timer.run();
 
 }
