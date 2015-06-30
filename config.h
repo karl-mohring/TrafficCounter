@@ -44,6 +44,7 @@ const long XBEE_TRANSMIT_INTERVAL = 30000; // Time between XBee transmissions
 
 // Misc
 
+const int YUN_BOOT_DELAY = 5000; //Time to wait for Yun to boot up before checking the handshake
 const byte COMMAND_CACHE_SIZE = 80;
 const byte SEND_BUFFER_SIZE = 50;
 const byte MIN_BASELINE_READS = 15; // Minimum number of reads needed to establish a baseline

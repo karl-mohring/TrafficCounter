@@ -1,8 +1,12 @@
 #!/usr/bin/env python
 
-from SinkNode.Processor.ThingspeakProcessor import ThingspeakProcessor
+from SinkNode.Writer.ThingspeakWriter import ThingspeakWriter
 from SinkNode.Reader.SerialReader import SerialReader
+from SinkNode.Writer.LogFileWriter import LogFileWriter
+from SinkNode.Formatter.CSVFormatter import CSVFormatter
+
 from SinkNode import *
+import sys
 from traffic_count_settings import *
 
 
@@ -17,7 +21,6 @@ def start_logger():
 
     # File Logging
     if log_filename:
-
         file_handler = logging.FileHandler(log_filename)
         file_handler.setFormatter(logging.Formatter(log_format))
         file_handler.setLevel(file_logger_level)
@@ -25,18 +28,24 @@ def start_logger():
 
 
 if __name__ == '__main__':
-    start_logger()
+    yun_reader = SerialReader(SERIAL_BAUD,
+                              SERIAL_PORT,
+                              start_delimiter=PACKET_START,
+                              stop_delimiter=PACKET_STOP)
 
-    reader = SerialReader(SERIAL_BAUD,
-                          SERIAL_PORT,
-                          start_delimiter=PACKET_START,
-                          stop_delimiter=PACKET_STOP,
-                          logger_name=logger_name)
+    log_writer = LogFileWriter(log_filename, CSVFormatter())
+    uploader = ThingspeakWriter("trafficCount", "KY7G0UVNHA25GQ73", TRAFFIC_KEY_MAP)
 
-    processor = ThingspeakProcessor(key_map=TRAFFIC_KEY_MAP,
-                                    channel_map=TRAFFIC_CHANNEL_MAP)
+    ingestor = SinkNode()
+    ingestor.add_reader(yun_reader)
+    ingestor.add_logger(log_writer)
+    ingestor.add_writer(uploader)
 
-    uploader = ThingspeakUploader(logger_name=None)
+    ingestor.start()
 
-    sink = SinkNode(reader, processor, uploader)
-    sink.run()
+    try:
+        while True:
+            pass
+
+    except KeyboardInterrupt:
+        sys.exit()

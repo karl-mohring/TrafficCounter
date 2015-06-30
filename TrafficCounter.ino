@@ -115,10 +115,11 @@ void startYunSerial(){
 	pinMode(YUN_HANDSHAKE_PIN, INPUT_PULLUP);
 	pinMode(LED_BUILTIN, OUTPUT);
 
-	Serial1.begin(115200);
-
 	// Check the initial state of the handshake pin (LOW == Ready)
+	delay(YUN_BOOT_DELAY);
 	_bootStatusChange();
+
+	Serial1.begin(SERIAL_BAUD);
 
 	// Listen on the handshake pin for any changes
 	attachInterrupt(4, _bootStatusChange, CHANGE);
